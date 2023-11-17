@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Fargate Task Example CloudFormation template
+Parameters:
+  TaskName:
+    Type: String
+  ContainerImage:
+    Type: String
+Resources:
+  FargateTasksCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: !Ref 'AWS::StackName'
+      CapacityProviders:
+        - FARGATE
+      Tags: []
+  FargateTasksLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      Tags: []
+  FargateIamExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+                - events.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceEventsRole'
+      Tags: []
+  FargateIamTaskRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies: []
+      ManagedPolicyArns: []
+      Tags: []
+  FargateTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      ContainerDefinitions:
+        - Name: !Ref TaskName
+          Image: !Ref ContainerImage
+          Environment: []
+          EntryPoint: []
+          Command: []
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-group: !Ref FargateTasksLogGroup
+              awslogs-stream-prefix: fargate
+      Family: !Ref TaskName
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !Ref FargateIamExecutionRole
+      TaskRoleArn: !Ref FargateIamTaskRole
+      RequiresCompatibilities:
+        - FARGATE
+      Memory: 0.5GB
+      Cpu: 256
+      Tags: []
+Outputs:
+  FargateTaskArn:
+    Value: !Ref FargateTask
