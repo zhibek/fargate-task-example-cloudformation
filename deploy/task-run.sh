@@ -6,7 +6,7 @@ set -e
 STAGE=${STAGE:=dev}
 STACK_NAME="${STACK_NAME:=fargate-task-example-cloudformation-${STAGE}}"
 TASK_NAME="${TASK_NAME:=example-task}"
-WAIT=${WAIT:=}
+FOLLOW=${FOLLOW:=}
 
 # Set BASEDIR holding script path
 BASEDIR=$(dirname "$0")
@@ -25,7 +25,7 @@ fi
 echo "STACK_NAME=${STACK_NAME}"
 echo "TASK_NAME=${TASK_NAME}"
 echo "AWS_REGION=${AWS_REGION}"
-echo "WAIT=${WAIT}"
+echo "FOLLOW=${FOLLOW}"
 echo ""
 
 # Find AWS Subnet ID
@@ -60,19 +60,29 @@ TASK_RUN_ARN=$(aws ecs run-task \
 TASK_RUN_ID=$(echo ${TASK_RUN_ARN} | sed 's/.*\///')
 echo "TASK_RUN_ID=${TASK_RUN_ID}"
 
-# Pause until task run is complete in WAIT mode
-if [ -n "${WAIT}" ]; then
-  echo "Waiting for ECS task run to complete..."
+# Pause until task run is complete in FOLLOW mode
+if [ -n "${FOLLOW}" ]; then
+  echo "Waiting for ECS task to start running..."
+  aws ecs wait tasks-running \
+    --cluster ${STACK_NAME} \
+    --tasks ${TASK_RUN_ID} \
+    --region ${AWS_REGION}
+
+  echo "ECS task running. Following logs..."
+  aws logs tail \
+    ${STACK_NAME} \
+    --log-stream-names "fargate/${TASK_NAME}/${TASK_RUN_ID}" \
+    --region eu-west-1 \
+    --follow &
+
   aws ecs wait tasks-stopped \
     --cluster ${STACK_NAME} \
     --tasks ${TASK_RUN_ID} \
     --region ${AWS_REGION}
-  echo "ECS task run complete. Logs shown below..."
-  aws logs tail \
-    ${STACK_NAME} \
-    --log-stream-names "fargate/${TASK_NAME}/${TASK_RUN_ID}" \
-    --region eu-west-1
+  kill $!  # Kill "aws logs tail" background task
+  echo "ECS task run complete!"
 fi
+
 
 # Keep this statement until the end!
 echo "***** Run complete! *****"
