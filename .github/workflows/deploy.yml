@@ -8,6 +8,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: Execute
         run: ./deploy/task-setup.sh
         env:
@@ -18,6 +19,7 @@ jobs:
     needs: [setup]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: Execute
         run: ./deploy/task-run.sh
         env:
@@ -28,6 +30,7 @@ jobs:
     needs: [setup, run]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: Execute
         run: ./deploy/task-cleanup.sh
         env:
