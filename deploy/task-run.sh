@@ -6,6 +6,7 @@ set -e
 STAGE=${STAGE:=dev}
 STACK_NAME="${STACK_NAME:=fargate-task-example-cloudformation-${STAGE}}"
 TASK_NAME="${TASK_NAME:=example-task}"
+WAIT=${WAIT:=}
 
 # Set BASEDIR holding script path
 BASEDIR=$(dirname "$0")
@@ -24,6 +25,7 @@ fi
 echo "STACK_NAME=${STACK_NAME}"
 echo "TASK_NAME=${TASK_NAME}"
 echo "AWS_REGION=${AWS_REGION}"
+echo "WAIT=${WAIT}"
 echo ""
 
 # Find AWS Subnet ID
@@ -46,13 +48,26 @@ fi
 
 # Run ECS task
 echo "Running task with ECS..."
-aws ecs run-task \
+TASK_RUN_ARN=$(aws ecs run-task \
   --cluster ${STACK_NAME} \
   --task-definition ${TASK_NAME} \
   --region ${AWS_REGION} \
   --launch-type FARGATE \
   --network-configuration '{"awsvpcConfiguration": {"subnets": ["'"${AWS_SUBNET_ID}"'"],"securityGroups": ["'"${AWS_SECURITYGROUP_ID}"'"],"assignPublicIp": "ENABLED"}}' \
-  --no-cli-pager
+  --query tasks[].[taskArn] \
+  --output text \
+)
+echo "TASK_RUN_ARN=${TASK_RUN_ARN}"
+
+# Pause until task run is complete in WAIT mode
+if [ -n "${WAIT}" ]; then
+  echo "Waiting for ECS task run to complete..."
+  aws ecs wait tasks-stopped \
+    --cluster ${STACK_NAME} \
+    --tasks ${TASK_RUN_ARN} \
+    --region ${AWS_REGION}
+  echo "ECS task run complete!"
+fi
 
 
 # Keep this statement until the end!

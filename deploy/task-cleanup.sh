@@ -28,11 +28,11 @@ echo ""
 
 # Delete images in container registry in ECR if it exists
 echo "Check ECR container registry..."
-CONTAINER_REGISTRY_EXISTS=$(aws ecr describe-repositories --repository-names ${TASK_NAME} --region ${AWS_REGION} --output text --query "repositories[].[repositoryName]" || true)
+CONTAINER_REGISTRY_EXISTS=$(aws ecr describe-repositories --repository-names "${STACK_NAME}/${TASK_NAME}" --region ${AWS_REGION} --output text --query "repositories[].[repositoryName]" || true)
 if [ -n "${CONTAINER_REGISTRY_EXISTS}" ]; then
   echo "Deleting images from ECR container registry..."
   aws ecr batch-delete-image \
-    --repository-name ${TASK_NAME} \
+    --repository-name "${STACK_NAME}/${TASK_NAME}" \
     --region ${AWS_REGION} \
     --image-ids imageTag=latest
 fi

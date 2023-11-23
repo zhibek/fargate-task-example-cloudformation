@@ -9,7 +9,7 @@ Resources:
   ContainerRepository:
     Type: AWS::ECR::Repository
     Properties: 
-      RepositoryName: !Ref TaskName
+      RepositoryName: !Sub '${AWS::StackName}/${TaskName}'
       ImageScanningConfiguration: 
         ScanOnPush: true
   FargateTasksCluster:
@@ -22,10 +22,12 @@ Resources:
   FargateTasksLogGroup:
     Type: 'AWS::Logs::LogGroup'
     Properties:
+      LogGroupName: !Ref 'AWS::StackName'
       Tags: []
   FargateIamExecutionRole:
     Type: 'AWS::IAM::Role'
     Properties:
+      RoleName: !Sub '${AWS::StackName}-execution-role'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -43,6 +45,7 @@ Resources:
   FargateIamTaskRole:
     Type: 'AWS::IAM::Role'
     Properties:
+      RoleName: !Sub '${AWS::StackName}-task-role'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
