@@ -57,18 +57,22 @@ TASK_RUN_ARN=$(aws ecs run-task \
   --query tasks[].[taskArn] \
   --output text \
 )
-echo "TASK_RUN_ARN=${TASK_RUN_ARN}"
+TASK_RUN_ID=$(echo ${TASK_RUN_ARN} | sed 's/.*\///')
+echo "TASK_RUN_ID=${TASK_RUN_ID}"
 
 # Pause until task run is complete in WAIT mode
 if [ -n "${WAIT}" ]; then
   echo "Waiting for ECS task run to complete..."
   aws ecs wait tasks-stopped \
     --cluster ${STACK_NAME} \
-    --tasks ${TASK_RUN_ARN} \
+    --tasks ${TASK_RUN_ID} \
     --region ${AWS_REGION}
-  echo "ECS task run complete!"
+  echo "ECS task run complete. Logs shown below..."
+  aws logs tail \
+    ${STACK_NAME} \
+    --log-stream-names "fargate/${TASK_NAME}/${TASK_RUN_ID}" \
+    --region eu-west-1
 fi
-
 
 # Keep this statement until the end!
 echo "***** Run complete! *****"
