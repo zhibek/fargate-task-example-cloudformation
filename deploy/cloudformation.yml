@@ -6,6 +6,12 @@ Parameters:
   ContainerImage:
     Type: String
 Resources:
+  ContainerRepository:
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: !Ref TaskName
+      ImageScanningConfiguration: 
+        ScanOnPush: true
   FargateTasksCluster:
     Type: 'AWS::ECS::Cluster'
     Properties:

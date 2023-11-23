@@ -26,25 +26,22 @@ echo "TASK_NAME=${TASK_NAME}"
 echo "AWS_REGION=${AWS_REGION}"
 echo ""
 
+# Delete images in container registry in ECR if it exists
+echo "Check ECR container registry..."
+CONTAINER_REGISTRY_EXISTS=$(aws ecr describe-repositories --repository-names ${TASK_NAME} --region ${AWS_REGION} --output text --query "repositories[].[repositoryName]" || true)
+if [ -n "${CONTAINER_REGISTRY_EXISTS}" ]; then
+  echo "Deleting images from ECR container registry..."
+  aws ecr batch-delete-image \
+    --repository-name ${TASK_NAME} \
+    --region ${AWS_REGION} \
+    --image-ids imageTag=latest
+fi
+
 # Delete stack with CloudFormation
 echo "Deleting stack with CloudFormation..."
 aws cloudformation delete-stack \
   --stack-name ${STACK_NAME} \
   --region ${AWS_REGION}
-
-# Delete container registry in ECR if it exists
-echo "Check ECR container registry..."
-CONTAINER_REGISTRY_EXISTS=$(aws ecr describe-repositories --repository-names ${TASK_NAME} --region ${AWS_REGION} --output text --query "repositories[].[repositoryName]" || true)
-if [ -n "${CONTAINER_REGISTRY_EXISTS}" ]; then
-  echo "Deleting ECR container registry..."
-  aws ecr batch-delete-image \
-    --repository-name ${TASK_NAME} \
-    --region ${AWS_REGION} \
-    --image-ids imageTag=latest
-  aws ecr delete-repository \
-    --repository-name ${TASK_NAME} \
-    --region ${AWS_REGION}
-fi
 
 # Wait until stack is deleted
 echo "Waiting until stack is deleted..."

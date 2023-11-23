@@ -42,6 +42,17 @@ echo "CONTAINER_IMAGE=${CONTAINER_IMAGE}"
 echo "DEBUG=${DEBUG}"
 echo ""
 
+# Deploy stack with CloudFormation
+echo "Deploying stack with CloudFormation..."
+aws cloudformation deploy \
+  --template-file ${BASEDIR}/cloudformation.yml \
+  --stack-name ${STACK_NAME} \
+  --region ${AWS_REGION} \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    TaskName=$TASK_NAME \
+    ContainerImage=$CONTAINER_IMAGE
+
 # Authenticate with ECR container registry
 echo "Authenticating with ECR container registry..."
 aws ecr get-login-password \
@@ -50,18 +61,6 @@ aws ecr get-login-password \
     --username AWS \
     --password-stdin \
     ${CONTAINER_REGISTRY}
-
-# Create container registry in ECR if not exists
-echo "Check ECR container registry..."
-CONTAINER_REGISTRY_EXISTS=$(aws ecr describe-repositories --repository-names ${TASK_NAME} --region ${AWS_REGION} --output text --query "repositories[].[repositoryName]" || true)
-if [ -z "${CONTAINER_REGISTRY_EXISTS}" ]; then
-  echo "Creating ECR container registry..."
-  aws ecr create-repository \
-    --repository-name ${TASK_NAME} \
-    --image-scanning-configuration \
-    --region ${AWS_REGION} \
-    scanOnPush=true
-fi
 
 # Build+tag+push Docker image
 echo "Building+tagging+pushing Docker image..." 
@@ -73,17 +72,6 @@ docker tag \
   ${CONTAINER_IMAGE}
 docker push \
   ${CONTAINER_IMAGE}
-
-# Deploy stack with CloudFormation
-echo "Deploying stack with CloudFormation..."
-aws cloudformation deploy \
-  --template-file ${BASEDIR}/cloudformation.yml \
-  --stack-name ${STACK_NAME} \
-  --region ${AWS_REGION} \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides \
-    TaskName=$TASK_NAME \
-    ContainerImage=$CONTAINER_IMAGE
 
 # Display stack logs in DEBUG mode
 if [ -n "${DEBUG}" ]; then
