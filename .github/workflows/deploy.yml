@@ -6,13 +6,31 @@ on:
 jobs:
 
   setup:
-    uses: ./.github/jobs/setup.yml
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute
+        run: ./deploy/task-setup.sh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   run:
-    uses: ./.github/jobs/run.yml
     needs: [setup]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute
+        run: ./deploy/task-run.sh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   cleanup:
-    uses: ./.github/jobs/cleanup.yml
     needs: [setup, run]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute
+        run: ./deploy/task-cleanup.sh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   
