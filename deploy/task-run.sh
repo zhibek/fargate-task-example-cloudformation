@@ -3,34 +3,44 @@
 # Stop on any error
 set -e
 
-STAGE=${STAGE:=dev}
-STACK_NAME="${STACK_NAME:=fargate-task-example-cloudformation-${STAGE}}"
-TASK_NAME="${TASK_NAME:=example-task}"
-FOLLOW=${FOLLOW:=}
+# Use env vars or defaults for input variables
+APP_NAME="${APP_NAME:=}"
+TASK_NAME="${TASK_NAME:=}"
+STAGE="${STAGE:=dev}"
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:=eu-west-1}"
+NO_FOLLOW=${NO_FOLLOW:=}
+
+# Validate input variables are set
+[ -z "${APP_NAME}" ] && echo "ERROR: APP_NAME env var must be set!" && exit 1;
+[ -z "${TASK_NAME}" ] && echo "ERROR: TASK_NAME env var must be set!" && exit 1;
+
+# Build STACK_NAME
+STACK_NAME="${APP_NAME}-${STAGE}"
 
 # Set BASEDIR holding script path
 BASEDIR=$(dirname "$0")
 
 # Check AWS auth
-if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
+if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
   echo "ERROR: AWS authentication requires AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY env vars are set!"
   exit 1
 fi
 
-# Set AWS_REGION to default if not provided as env var
-if [ -z "${AWS_REGION}" ]; then
-  AWS_REGION="eu-west-1"
-fi
-
 echo "STACK_NAME=${STACK_NAME}"
 echo "TASK_NAME=${TASK_NAME}"
-echo "AWS_REGION=${AWS_REGION}"
-echo "FOLLOW=${FOLLOW}"
+echo "AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}"
+echo "NO_FOLLOW=${NO_FOLLOW}"
 echo ""
 
 # Find AWS Subnet ID
 echo "Finding AWS Subnet ID..."
-AWS_SUBNET_ID=$(aws ec2 describe-subnets --region ${AWS_REGION} --max-items 1 --filter Name=default-for-az,Values=true --query Subnets[].[SubnetId] --output text | head -n 1)
+AWS_SUBNET_ID=$(aws ec2 describe-subnets \
+  --max-items 1 \
+  --filter Name=default-for-az,Values=true \
+  --query Subnets[].[SubnetId] \
+  --output text \
+  | head -n 1 \
+)
 echo "AWS_SUBNET_ID=${AWS_SUBNET_ID}"
 if [ -z "${AWS_SUBNET_ID}" ]; then
   echo "ERROR: Could not find AWS Subnet ID!"
@@ -39,7 +49,13 @@ fi
 
 # Find AWS Security Group
 echo "Finding AWS Security Group..."
-AWS_SECURITYGROUP_ID=$(aws ec2 describe-security-groups --region ${AWS_REGION} --max-items 1 --filter Name=group-name,Values=default --query SecurityGroups[].[GroupId] --output text | head -n 1)
+AWS_SECURITYGROUP_ID=$(aws ec2 describe-security-groups \
+  --max-items 1 \
+  --filter Name=group-name,Values=default \
+  --query SecurityGroups[].[GroupId] \
+  --output text \
+  | head -n 1 \
+)
 echo "AWS_SECURITYGROUP_ID=${AWS_SECURITYGROUP_ID}"
 if [ -z "${AWS_SECURITYGROUP_ID}" ]; then
   echo "ERROR: Could not find AWS Security Group ID!"
@@ -51,7 +67,6 @@ echo "Running task with ECS..."
 TASK_RUN_ARN=$(aws ecs run-task \
   --cluster ${STACK_NAME} \
   --task-definition ${TASK_NAME} \
-  --region ${AWS_REGION} \
   --launch-type FARGATE \
   --network-configuration '{"awsvpcConfiguration": {"subnets": ["'"${AWS_SUBNET_ID}"'"],"securityGroups": ["'"${AWS_SECURITYGROUP_ID}"'"],"assignPublicIp": "ENABLED"}}' \
   --query tasks[].[taskArn] \
@@ -61,24 +76,21 @@ TASK_RUN_ID=$(echo ${TASK_RUN_ARN} | sed 's/.*\///')
 echo "TASK_RUN_ID=${TASK_RUN_ID}"
 
 # Pause until task run is complete in FOLLOW mode
-if [ -n "${FOLLOW}" ]; then
+if [ -z "${NO_FOLLOW}" ]; then
   echo "Waiting for ECS task to start running..."
   aws ecs wait tasks-running \
     --cluster ${STACK_NAME} \
-    --tasks ${TASK_RUN_ID} \
-    --region ${AWS_REGION}
+    --tasks ${TASK_RUN_ID}
 
   echo "ECS task running. Following logs..."
   aws logs tail \
     ${STACK_NAME} \
     --log-stream-names "fargate/${TASK_NAME}/${TASK_RUN_ID}" \
-    --region eu-west-1 \
     --follow &
 
   aws ecs wait tasks-stopped \
     --cluster ${STACK_NAME} \
-    --tasks ${TASK_RUN_ID} \
-    --region ${AWS_REGION}
+    --tasks ${TASK_RUN_ID}
   kill $!  # Kill "aws logs tail" background task
   echo "ECS task run complete!"
 fi

@@ -9,6 +9,7 @@ https://portal.aws.amazon.com/billing/signup
 ```
 export AWS_ACCESS_KEY_ID=
 export AWS_SECRET_ACCESS_KEY=
+export AWS_DEFAULT_REGION=eu-west-1
 ```
 
 
@@ -17,17 +18,17 @@ export AWS_SECRET_ACCESS_KEY=
 ### Setup
 Setup the Fargate Task.
 ```
-./deploy/task-setup.sh
+APP_NAME=fargate-task-example-cloudformation TASK_NAME=example-task ./deploy/task-setup.sh
 ```
 
 ### Run
 Run the Fargate Task.
 ```
-./deploy/task-run.sh
+APP_NAME=fargate-task-example-cloudformation TASK_NAME=example-task ./deploy/task-run.sh
 ```
 
 ### Cleanup
 Cleanup the Fargate Task when it is no longer required.
 ```
-./deploy/task-cleanup.sh
+APP_NAME=fargate-task-example-cloudformation TASK_NAME=example-task ./deploy/task-cleanup.sh
 ```
